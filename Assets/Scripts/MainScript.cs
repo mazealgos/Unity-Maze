@@ -45,12 +45,13 @@ public class MainScript : MonoBehaviour
     {
         GameObject cloneTile = Instantiate(tilePrefab, backgroundImage.transform);
         RectTransform tileTransform = cloneTile.GetComponent<RectTransform>();
+        Button tileButton = cloneTile.GetComponent<Button>();
         Image tileImage = cloneTile.GetComponent<Image>();
         tileTransform.position = new Vector3(pos.x * tileSizePX + canvas.transform.position.x-14f, pos.y * tileSizePX + canvas.transform.position.y+14f, 0);
-        //tileTransform.position = new Vector3(canvas.transform.position.x, canvas.transform.position.y, 0);
         if (code == 0)
         {
             tileImage.color = new Color(255f, 255f, 255f, 1f);
+            //tileButton.colors.normalColor = new Color();
         } else if (code == 1)
         {
             tileImage.color = new Color(0f, 0f, 0f, 1f);
