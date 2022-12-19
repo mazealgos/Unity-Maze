@@ -21,6 +21,7 @@ public class MainScript : MonoBehaviour
         Maze maze1 = GetMazeFromJSON();
         int[,] mazeArray = Get2DArrayFromMaze(maze1);
         GenerateMaze(maze1, mazeArray);
+        SetupButtonListeners();
     }
 
     Maze GetMazeFromJSON()
@@ -41,13 +42,14 @@ public class MainScript : MonoBehaviour
         return finalMazeArray;
     }
 
-    void CreateNewTile(Vector2 pos, int code)
+    void CreateNewTile(Vector2 index, Vector2 pos, int code)
     {
         GameObject cloneTile = Instantiate(tilePrefab, backgroundImage.transform);
         RectTransform tileTransform = cloneTile.GetComponent<RectTransform>();
         Button tileButton = cloneTile.GetComponent<Button>();
         Image tileImage = cloneTile.GetComponent<Image>();
         tileTransform.position = new Vector3(pos.x * tileSizePX + canvas.transform.position.x-14f, pos.y * tileSizePX + canvas.transform.position.y+14f, 0);
+        cloneTile.name = index.x + "," + index.y;
         if (code == 0)
         {
             tileImage.color = new Color(255f, 255f, 255f, 1f);
@@ -72,10 +74,25 @@ public class MainScript : MonoBehaviour
         {
             for (int y = 0; y < sY; y++)
             {
-                CreateNewTile(new Vector2((x+1)-sX/2, (-y-1)+sY/2), mazeArray[x,y]);
+                CreateNewTile(new Vector2(x,y), new Vector2((x+1)-sX/2, (-y-1)+sY/2), mazeArray[x,y]);
             }
         }
     }
+
+    void SetupButtonListeners()
+    {
+        foreach (Transform tile in backgroundImage.transform)
+        {
+            Button b = tile.gameObject.GetComponent<Button>();
+            b.onClick.AddListener(() => ButtonPressed(tile.gameObject));
+        }
+    }
+
+    void ButtonPressed(GameObject button)
+    {
+        Debug.Log(button.transform.name);
+    }
+
 
     // Update is called once per frame
     void Update()
