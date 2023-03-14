@@ -9,8 +9,11 @@ public class MainScript : MonoBehaviour
     public GameObject tilePrefab;
     public GameObject backgroundImage;
     public GameObject canvas;
+    public GameObject resetButton;
+    public GameObject solutionButton;
     GameObject main;
     MessageText messageText;
+    MazeSolver mazeSolver;
 
     Maze maze1;
     // First 3 bits of each value are the "static" maze, derived from the JSON
@@ -22,6 +25,7 @@ public class MainScript : MonoBehaviour
     Vector2 origPlayerPos;
     Vector2 finishPos;
     Vector2[] adjacent = new Vector2[4];
+    List<Vector2> solution;
     int tileSizePX = 30;
     
     [System.Serializable]
@@ -38,6 +42,7 @@ public class MainScript : MonoBehaviour
         maze1 = GetMazeFromJSON();
         mazeArray = Get2DArrayFromMaze(maze1);
         GenerateMaze();
+        solution = mazeSolver.GetSolution(mazeArray, new Vector2(maze1.sizeX, maze1.sizeY));
         SetupButtonListeners();
         finishPos = GetFinishPos();
     }
@@ -45,6 +50,7 @@ public class MainScript : MonoBehaviour
     {
         main = GameObject.Find("Main");
         messageText = main.GetComponent<MessageText>();
+        mazeSolver = main.GetComponent<MazeSolver>();
     }
 
     Maze GetMazeFromJSON()
@@ -121,23 +127,9 @@ public class MainScript : MonoBehaviour
         //Debug.Log("Maze Reset");
     }
 
-    void UpdateMazeArray()
+    void ShowSolution()
     {
-        // Update adjacent tiles in Maze Array
-        for(int i = 0; i<4; i++)
-        {
-            var adjacentTile = TileFromPosition(adjacent[i]);
-            int adjacentCode = RawCodeFromPosition(adjacent[i]);
-            if (adjacentTile == null || adjacentCode == -1 || (adjacentCode & 7) == 1 || (adjacentCode >> 3) == 1)
-            {
-                continue;
-            }
-            else
-            {
-                
-            }
-            
-        }
+        ColorSolution();
     }
 
     void SetupButtonListeners()
@@ -147,6 +139,11 @@ public class MainScript : MonoBehaviour
             Button b = tile.gameObject.GetComponent<Button>();
             b.onClick.AddListener(() => ButtonPressed(tile.gameObject));
         }
+        Button r = resetButton.GetComponent<Button>();
+        r.onClick.AddListener(() => ResetMaze());
+
+        Button s = solutionButton.GetComponent<Button>();
+        s.onClick.AddListener(() => ShowSolution());
     }
 
     void ButtonPressed(GameObject button)
@@ -166,14 +163,14 @@ public class MainScript : MonoBehaviour
             if (playerPos == finishPos)
             {
                 messageText.displayMessage("Good job, you won!", new Color(0.3f, 1f, 0.3f, 1f));
-                ResetMaze();
+                //ResetMaze();
             }
             //Debug.Log(playerPos);
             //UpdateColors();
         } else
         {
             messageText.displayMessage("Oops... Try Again!", new Color(1f, 0.3f, 0.3f, 1f));
-            ResetMaze();
+            //ResetMaze();
         }
     }
 
@@ -275,12 +272,20 @@ public class MainScript : MonoBehaviour
         return finalColor;
     }
 
-    void ColorTile(int x, int y)
+    public void ColorTile(int x, int y)
     {
         Transform tileTransform = TileFromPosition(new Vector2(x, y));
         GameObject tileObject = tileTransform.gameObject;
         Image tileImage = tileObject.GetComponent<Image>();
         tileImage.color = ColorFromCode(mazeArray[x, y]);
+    }
+
+    public void ColorTile(int x, int y, Color color)
+    {
+        Transform tileTransform = TileFromPosition(new Vector2(x, y));
+        GameObject tileObject = tileTransform.gameObject;
+        Image tileImage = tileObject.GetComponent<Image>();
+        tileImage.color = color;
     }
 
     Transform TileFromPosition(Vector2 pos)
@@ -317,25 +322,26 @@ public class MainScript : MonoBehaviour
 
    void UpdateColors()
     {
-        // --- LEFT OFF: ---
-        // Need to create a single function that colors all
-        // tiles based on their codes.
-        // Also need second function that manages all the
-        // tile codes and makes sure all game progress,
-        // including player position, trail, and adjacents
-        // are all stored in the tile codes. (see new codes
-        // for tiles above, in ColorFromCode().
         for (int y = 0; y < maze1.sizeY; y++)
         {
             for (int x = 0; x < maze1.sizeX; x++)
             {
                 Transform tileTransform = TileFromPosition(new Vector2(x, y));
-                //Debug.Log(tileTransform.name);
                 GameObject tileObject = tileTransform.gameObject;
                 Image tileImage = tileObject.GetComponent<Image>();
                 tileImage.color = ColorFromCode(mazeArray[x,y]);
-                //Debug.Log("Code: "+CodeFromPosition(new Vector2(x, y)));
             }
+        }
+    }
+
+    void ColorSolution()
+    {
+        for (int i = 0; i<solution.Count; i++)
+        {
+            Transform tileTransform = TileFromPosition(solution[i]);
+            GameObject tileObject = tileTransform.gameObject;
+            Image tileImage = tileObject.GetComponent<Image>();
+            tileImage.color = new Color(1, 0.3f, 0);
         }
     }
 
