@@ -4,15 +4,22 @@ using UnityEngine;
 
 public class MazeSolver : MonoBehaviour
 {
-    public List<Vector2> GetSolution(int[,] maze, Vector2 size)
+    public List<Vector2> GetSolution(int[,] maze)
     {
         List<Vector2> solution = new List<Vector2>();
-
+        Vector2 size = new Vector2(maze.GetLength(0), maze.GetLength(1));
+        
         // Get the mazeStore array, which will be filled with high numbers for where the player cannot go, leaving a path of 0's that should be the solution
+        // **TODO: Split GetMazeStoreArray() by its two parts (fill wall stores, and dead end filling) and fill dead ends many times over until none left
+        // **TODO: Progress on previous todo was made, but now the MazeSolver works incorrectly and doesn't seem to be filling up the dead ends, making the solution length 68, not 28.
         int[,] mazeStore = GetMazeStoreArray(maze, size);
+        mazeStore = FillDeadEnds(mazeStore, size);
+
         // Run through the mazeStore array, filling in any potentially missed dead ends and ensuring a path of low numbers to be the correct path
+        // **TODO: Only need GetFinalPath(), not TraverseMaze()
         mazeStore = TraverseMaze(maze, size, mazeStore);
-        // Run through traversed maze store, going to from start to finish using lowest scores, keeping track of where the player has been
+
+        // Run through traversed maze store, going from start to finish using lowest scores, keeping track of where the player has been
         solution = GetFinalPath(maze, size, mazeStore);
         
 
@@ -33,46 +40,85 @@ public class MazeSolver : MonoBehaviour
     {
         // mazeStore should be filled with 1's where there are walls or dead ends, leaving a path of 0's that should be the solution
         int[,] mazeStore = new int[(int) size.x, (int) size.y];
-        List<Vector2> deadEnds = new List<Vector2>();
 
-        // Loop through all tiles, add 1's to mazeStore for walls, identify dead ends
+        // Loop through all tiles, add 99's to mazeStore for walls
         for (int x = 0; x < size.x; x++)
         {
             for (int y = 0; y < size.y; y++)
             {
-                if (maze[x, y] != 0)
+                if (maze[x, y] == 1)
+                    mazeStore[x, y] = 99;
+            }
+        }
+
+        return mazeStore;
+    }
+
+    List<Vector2> GetDeadEnds(int[,] mazeStore, Vector2 size)
+    {
+        List<Vector2> deadEnds = new List<Vector2>();
+
+        for (int x = 0; x < size.x; x++)
+        {
+            for (int y = 0; y < size.y; y++)
+            {
+                if (mazeStore[x, y] == 0)
                 {
-                    if (maze[x, y] == 1)
-                        mazeStore[x, y] = 99;
-                    continue;
-                } else if (maze[x, y] == 0)
-                {
-                    int adjCount =
-                        CheckAdjacent(maze, size, new Vector2(x, y), new Vector2(-1, 0), 1) +
-                        CheckAdjacent(maze, size, new Vector2(x, y), new Vector2(1, 0), 1) +
-                        CheckAdjacent(maze, size, new Vector2(x, y), new Vector2(0, 1), 1) +
-                        CheckAdjacent(maze, size, new Vector2(x, y), new Vector2(0, -1), 1);
-                    if (adjCount >= 3)
+                    int adjCount = 0;
+                    bool wasEndpoint = false;
+                    for (int i = 0; i<4; i++)
+                    {
+                        Vector2 adjOffset = GetOffsetFromIndex(i);
+                        int adjCode = CheckAdjacent(mazeStore, size, new Vector2(x, y), adjOffset, 0);
+                        if (adjCode == 1)
+                            adjCount++;
+                        if (adjCode == -1)
+                            wasEndpoint = true;
+                    }
+
+                    if (adjCount == 1 && wasEndpoint == false)
                         deadEnds.Add(new Vector2(x, y));
                 }
             }
         }
 
-        // Loop through all dead ends, follow dead end path until intersection is found, set all dead end tiles to 1 in mazeStore
+        return deadEnds;
+    }
+
+    int[,] IterateDeadEnds(int[,] mazeStore, List<Vector2> deadEnds, Vector2 size)
+    {
+        Debug.Log("************** New Iteration **************");
+        int[,] newStore = mazeStore;
         for (int d = 0; d < deadEnds.Count; d++)
         {
             Vector2 c = deadEnds[d];
-            List<Vector2> adjacents = GetAdjacents(mazeStore, size, c, 0);
+            List<Vector2> adjacents = GetAdjacents(newStore, size, c, 0);
 
             do
             {
-                mazeStore[(int) c.x, (int) c.y] = 88;
+                Debug.Log(c.x+", "+c.y);
+                newStore[(int)c.x, (int)c.y] = 88;
                 c = adjacents[0];
-                adjacents = GetAdjacents(mazeStore, size, c, 0);
-            } while (adjacents.Count <= 1);
+                adjacents = GetAdjacents(newStore, size, c, 0);
+            } while (adjacents.Count == 1);
         }
 
-        return mazeStore;
+        return newStore;
+    }
+
+    int[,] FillDeadEnds(int[,] mazeStore, Vector2 size)
+    {
+        int cycleCount = 0;
+        int[,] newStore = mazeStore;
+        List<Vector2> deadEnds = GetDeadEnds(newStore, size);
+        while(deadEnds.Count > 0 && cycleCount <= 100)
+        {
+            cycleCount++;
+            newStore = IterateDeadEnds(newStore, deadEnds, size);
+            deadEnds = GetDeadEnds(newStore, size);
+        }
+
+        return newStore;
     }
 
     // Simulates a player choosing the best path through the mazeStore array, updating the values it's been at, to create a path of lowest numbers from start to finish
@@ -150,6 +196,10 @@ public class MazeSolver : MonoBehaviour
             if (maze[(int)c.x, (int)c.y] == check)
                 return 1;
         }
+        else
+        {
+            return -1;
+        }
         return 0;
     }
 
@@ -203,6 +253,7 @@ public class MazeSolver : MonoBehaviour
 
     Vector2 GetOffsetFromIndex(int i)
     {
+        // 0 = (-1, 0), 1 = (1, 0), 2 = (0, 1), 3 = (0, -1)
         return new Vector2(0.5f*Mathf.Abs(Mathf.Sign(i-1.5f)-1)*Mathf.Sign(i-0.5f), 0.5f*Mathf.Abs(Mathf.Sign(i-1.5f)+1)*Mathf.Sign(2.5f-i));
     }
 

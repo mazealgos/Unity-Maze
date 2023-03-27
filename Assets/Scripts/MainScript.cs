@@ -15,7 +15,7 @@ public class MainScript : MonoBehaviour
     MessageText messageText;
     MazeSolver mazeSolver;
 
-    Maze maze1;
+    Maze chosenMaze;
     // First 3 bits of each value are the "static" maze, derived from the JSON
     // Bits 4-6:
     // Value of 0 = Unchanged
@@ -39,12 +39,12 @@ public class MainScript : MonoBehaviour
     void Start()
     {
         messageText.clearText();
-        maze1 = GetMazeFromJSON();
-        mazeArray = Get2DArrayFromMaze(maze1);
-        GenerateMaze();
-        solution = mazeSolver.GetSolution(mazeArray, new Vector2(maze1.sizeX, maze1.sizeY));
+        chosenMaze = GetMazeFromJSON();
+        mazeArray = Get2DArrayFromMaze(chosenMaze);
+        GenerateMaze(chosenMaze);
+        solution = mazeSolver.GetSolution(mazeArray);
         SetupButtonListeners();
-        finishPos = GetFinishPos();
+        finishPos = GetFinishPos(chosenMaze);
     }
     private void Awake()
     {
@@ -55,7 +55,7 @@ public class MainScript : MonoBehaviour
 
     Maze GetMazeFromJSON()
     {
-        var mazeJSON = Resources.Load<TextAsset>("Mazes/maze1");
+        var mazeJSON = Resources.Load<TextAsset>("Mazes/maze5");
         Maze myMaze = JsonUtility.FromJson<Maze>(mazeJSON.text);
         return myMaze;
     }
@@ -66,7 +66,7 @@ public class MainScript : MonoBehaviour
         int[,] finalMazeArray = new int[mazeObject.sizeX, mazeObject.sizeY];
         for (int i = 0; i<mazeArraySize; i++)
         {
-            finalMazeArray[i % mazeObject.sizeX, (int)Mathf.Floor(i / mazeObject.sizeY)] = mazeObject.maze[i];
+            finalMazeArray[i % mazeObject.sizeX, (int)Mathf.Floor(i / mazeObject.sizeX)] = mazeObject.maze[i];
         }
         return finalMazeArray;
     }
@@ -105,10 +105,10 @@ public class MainScript : MonoBehaviour
         }
     }
 
-    void GenerateMaze()
+    void GenerateMaze(Maze maze)
     {
-        int sX = maze1.sizeX;
-        int sY = maze1.sizeY;
+        int sX = maze.sizeX;
+        int sY = maze.sizeY;
         for (int y = 0; y < sY; y++)
         {
             for (int x = 0; x < sX; x++)
@@ -120,10 +120,10 @@ public class MainScript : MonoBehaviour
 
     void ResetMaze()
     {
-        mazeArray = Get2DArrayFromMaze(maze1);
+        mazeArray = Get2DArrayFromMaze(chosenMaze);
         playerPos = origPlayerPos;
         adjacent = new Vector2[4];
-        UpdateColors();
+        UpdateColors(chosenMaze);
         //Debug.Log("Maze Reset");
     }
 
@@ -188,8 +188,8 @@ public class MainScript : MonoBehaviour
         GetAdjacent();
         for (int x = 0; x < 4; x++)
         {
-            var adjacentTile = TileFromPosition(adjacent[x]);
-            int adjacentCode = CodeFromPosition(adjacent[x]);
+            var adjacentTile = TileFromPosition(chosenMaze, adjacent[x]);
+            int adjacentCode = CodeFromPosition(chosenMaze, adjacent[x]);
             if (adjacentTile == null || adjacentCode == -1 || (adjacentCode & 7) == 1 || (adjacentCode >> 3) == 1)
                 continue;
             if (adjacent[x] == pos)
@@ -203,12 +203,12 @@ public class MainScript : MonoBehaviour
         return new Vector2(int.Parse(""+name[0]), int.Parse(""+name[2]));
     }
 
-    Vector2 GetFinishPos()
+    Vector2 GetFinishPos(Maze maze)
     {
         Vector2 f = new Vector2(0, 0);
-        for(int x = 0; x<maze1.sizeX; x++)
+        for(int x = 0; x<maze.sizeX; x++)
         {
-            for(int y = 0; y<maze1.sizeY; y++)
+            for(int y = 0; y<maze.sizeY; y++)
             {
                 if ((mazeArray[x, y] & 7) == 3)
                     f = new Vector2(x, y);
@@ -274,7 +274,7 @@ public class MainScript : MonoBehaviour
 
     public void ColorTile(int x, int y)
     {
-        Transform tileTransform = TileFromPosition(new Vector2(x, y));
+        Transform tileTransform = TileFromPosition(chosenMaze, new Vector2(x, y));
         GameObject tileObject = tileTransform.gameObject;
         Image tileImage = tileObject.GetComponent<Image>();
         tileImage.color = ColorFromCode(mazeArray[x, y]);
@@ -282,25 +282,25 @@ public class MainScript : MonoBehaviour
 
     public void ColorTile(int x, int y, Color color)
     {
-        Transform tileTransform = TileFromPosition(new Vector2(x, y));
+        Transform tileTransform = TileFromPosition(chosenMaze, new Vector2(x, y));
         GameObject tileObject = tileTransform.gameObject;
         Image tileImage = tileObject.GetComponent<Image>();
         tileImage.color = color;
     }
 
-    Transform TileFromPosition(Vector2 pos)
+    Transform TileFromPosition(Maze maze, Vector2 pos)
     {
-        if (pos.x < 0 || pos.x > 9 || pos.y < 0 || pos.y > 9)
+        if (pos.x < 0 || pos.x > maze.sizeX || pos.y < 0 || pos.y > maze.sizeY)
             return null;
         return backgroundImage.transform.Find((pos.x).ToString() + "," + (pos.y).ToString());
     }
 
-    int RawCodeFromPosition(Vector2 pos)
+    int RawCodeFromPosition(Maze maze, Vector2 pos)
     {
         //Debug.Log(pos);
-        if(pos.x <=9 && pos.x >= 0 && pos.y <=9 && pos.y >= 0)
+        if(pos.x < maze.sizeX && pos.x >= 0 && pos.y < maze.sizeY && pos.y >= 0)
         {
-            return maze1.maze[(int)(pos.x + (pos.y * maze1.sizeX))];
+            return maze.maze[(int)(pos.x + (pos.y * maze.sizeX))];
         } else
         {
             return -1;
@@ -308,9 +308,9 @@ public class MainScript : MonoBehaviour
         
     }
 
-    int CodeFromPosition(Vector2 pos)
+    int CodeFromPosition(Maze maze, Vector2 pos)
     {
-        if (pos.x <= 9 && pos.x >= 0 && pos.y <= 9 && pos.y >= 0)
+        if (pos.x < maze.sizeX && pos.x >= 0 && pos.y < maze.sizeY && pos.y >= 0)
         {
             return mazeArray[(int)pos.x, (int)pos.y];
         }
@@ -320,13 +320,13 @@ public class MainScript : MonoBehaviour
         }
     }
 
-   void UpdateColors()
+   void UpdateColors(Maze maze)
     {
-        for (int y = 0; y < maze1.sizeY; y++)
+        for (int y = 0; y < maze.sizeY; y++)
         {
-            for (int x = 0; x < maze1.sizeX; x++)
+            for (int x = 0; x < maze.sizeX; x++)
             {
-                Transform tileTransform = TileFromPosition(new Vector2(x, y));
+                Transform tileTransform = TileFromPosition(chosenMaze, new Vector2(x, y));
                 GameObject tileObject = tileTransform.gameObject;
                 Image tileImage = tileObject.GetComponent<Image>();
                 tileImage.color = ColorFromCode(mazeArray[x,y]);
@@ -338,11 +338,13 @@ public class MainScript : MonoBehaviour
     {
         for (int i = 0; i<solution.Count; i++)
         {
-            Transform tileTransform = TileFromPosition(solution[i]);
+            float colorC = (0f + (1f * ((float)i / (float)(solution.Count-1))));
+            Transform tileTransform = TileFromPosition(chosenMaze, solution[i]);
             GameObject tileObject = tileTransform.gameObject;
             Image tileImage = tileObject.GetComponent<Image>();
-            tileImage.color = new Color(1, 0.3f, 0);
+            tileImage.color = Color.HSVToRGB(colorC, 1, 1);
         }
+        Debug.Log(solution.Count);
     }
 
     // Update is called once per frame
