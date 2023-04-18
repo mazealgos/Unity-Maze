@@ -26,7 +26,6 @@ public class MainScript : MonoBehaviour
     Vector2 finishPos;
     Vector2[] adjacent = new Vector2[4];
     List<Vector2> solution;
-    int tileSizePX = 30;
     
     [System.Serializable]
     class Maze
@@ -71,13 +70,18 @@ public class MainScript : MonoBehaviour
         return finalMazeArray;
     }
 
-    void CreateNewTile(Vector2 index, Vector2 pos, int code)
+    void CreateNewTile(Maze maze, Vector2 index, Vector2 pos, int code)
     {
         GameObject cloneTile = Instantiate(tilePrefab, backgroundImage.transform);
         RectTransform tileTransform = cloneTile.GetComponent<RectTransform>();
         Button tileButton = cloneTile.GetComponent<Button>();
         Image tileImage = cloneTile.GetComponent<Image>();
-        tileTransform.position = new Vector3(pos.x * tileSizePX + canvas.transform.position.x-14f, pos.y * tileSizePX + canvas.transform.position.y+14f, 0);
+        RectTransform backgroundTransform = backgroundImage.GetComponent<RectTransform>();
+        float tileSizePX = backgroundTransform.rect.width/maze.sizeX;
+        tileTransform.position = new Vector3(pos.x * tileSizePX + canvas.transform.position.x, pos.y * tileSizePX + canvas.transform.position.y, 0);
+        tileTransform.sizeDelta = new Vector2(tileSizePX-2, tileSizePX-2);
+        //tileTransform.rect.width = tileSizePX;
+        //tileTransform.rect.height = tileSizePX;
         cloneTile.name = index.x + "," + index.y;
         if (code == 0)
         {
@@ -113,7 +117,7 @@ public class MainScript : MonoBehaviour
         {
             for (int x = 0; x < sX; x++)
             {
-                CreateNewTile(new Vector2(x,y), new Vector2((x+1)-sX/2, (-y-1)+sY/2), mazeArray[x,y] & 7);
+                CreateNewTile(maze, new Vector2(x,y), new Vector2(x-(sX-1)/2, -y+(sY-1)/2), mazeArray[x,y] & 7);
             }
         }
     }
@@ -200,7 +204,8 @@ public class MainScript : MonoBehaviour
 
     Vector2 PosFromName(string name)
     {
-        return new Vector2(int.Parse(""+name[0]), int.Parse(""+name[2]));
+        string[] nameArray = name.Split(',');
+        return new Vector2(int.Parse(""+nameArray[0]), int.Parse(""+nameArray[1]));
     }
 
     Vector2 GetFinishPos(Maze maze)

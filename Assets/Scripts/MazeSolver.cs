@@ -13,11 +13,11 @@ public class MazeSolver : MonoBehaviour
         // **TODO: Split GetMazeStoreArray() by its two parts (fill wall stores, and dead end filling) and fill dead ends many times over until none left
         // **TODO: Progress on previous todo was made, but now the MazeSolver works incorrectly and doesn't seem to be filling up the dead ends, making the solution length 68, not 28.
         int[,] mazeStore = GetMazeStoreArray(maze, size);
-        mazeStore = FillDeadEnds(mazeStore, size);
+        mazeStore = FillDeadEnds(maze, mazeStore, size);
 
         // Run through the mazeStore array, filling in any potentially missed dead ends and ensuring a path of low numbers to be the correct path
         // **TODO: Only need GetFinalPath(), not TraverseMaze()
-        mazeStore = TraverseMaze(maze, size, mazeStore);
+        //mazeStore = TraverseMaze(maze, size, mazeStore);
 
         // Run through traversed maze store, going from start to finish using lowest scores, keeping track of where the player has been
         solution = GetFinalPath(maze, size, mazeStore);
@@ -48,13 +48,19 @@ public class MazeSolver : MonoBehaviour
             {
                 if (maze[x, y] == 1)
                     mazeStore[x, y] = 99;
+                else
+                    mazeStore[x, y] = 0;
+                //else if (maze[x, y] == 2 || maze[x, y] == 3)
+                //    mazeStore[x, y] = 1;
+                //else
+                //    mazeStore[x, y] = 0;
             }
         }
 
         return mazeStore;
     }
 
-    List<Vector2> GetDeadEnds(int[,] mazeStore, Vector2 size)
+    List<Vector2> GetDeadEnds(int[,] maze, int[,] mazeStore, Vector2 size)
     {
         List<Vector2> deadEnds = new List<Vector2>();
 
@@ -62,7 +68,7 @@ public class MazeSolver : MonoBehaviour
         {
             for (int y = 0; y < size.y; y++)
             {
-                if (mazeStore[x, y] == 0)
+                if (mazeStore[x, y] == 0 && maze[x, y] != 2 && maze[x, y] != 3)
                 {
                     int adjCount = 0;
                     bool wasEndpoint = false;
@@ -87,7 +93,7 @@ public class MazeSolver : MonoBehaviour
 
     int[,] IterateDeadEnds(int[,] mazeStore, List<Vector2> deadEnds, Vector2 size)
     {
-        Debug.Log("************** New Iteration **************");
+        //Debug.Log("************** New Iteration **************");
         int[,] newStore = mazeStore;
         for (int d = 0; d < deadEnds.Count; d++)
         {
@@ -96,8 +102,10 @@ public class MazeSolver : MonoBehaviour
 
             do
             {
-                Debug.Log(c.x+", "+c.y);
+                //Debug.Log(c.x+", "+c.y);
                 newStore[(int)c.x, (int)c.y] = 88;
+                if (adjacents.Count == 0)
+                    break;
                 c = adjacents[0];
                 adjacents = GetAdjacents(newStore, size, c, 0);
             } while (adjacents.Count == 1);
@@ -106,16 +114,16 @@ public class MazeSolver : MonoBehaviour
         return newStore;
     }
 
-    int[,] FillDeadEnds(int[,] mazeStore, Vector2 size)
+    int[,] FillDeadEnds(int[,] maze, int[,] mazeStore, Vector2 size)
     {
         int cycleCount = 0;
         int[,] newStore = mazeStore;
-        List<Vector2> deadEnds = GetDeadEnds(newStore, size);
+        List<Vector2> deadEnds = GetDeadEnds(maze, newStore, size);
         while(deadEnds.Count > 0 && cycleCount <= 100)
         {
             cycleCount++;
             newStore = IterateDeadEnds(newStore, deadEnds, size);
-            deadEnds = GetDeadEnds(newStore, size);
+            deadEnds = GetDeadEnds(maze, newStore, size);
         }
 
         return newStore;
@@ -160,6 +168,7 @@ public class MazeSolver : MonoBehaviour
         List<Vector2> path = new List<Vector2>();
         Vector2 start = new Vector2(0, 0);
         Vector2 finish = new Vector2(0, 0);
+        int[,] newStore = mazeStore;
 
         // Get Start and Finish positions
         for (int x = 0; x < size.x; x++)
@@ -177,10 +186,11 @@ public class MazeSolver : MonoBehaviour
         {
             path.Add(player);
             iterationCount++;
-            mazeStore[(int)player.x, (int)player.y] += 1;
-            List<Vector2> bestAdjacents = GetBestAdjacent(mazeStore, size, player);
+            newStore[(int)player.x, (int)player.y] += 1;
+            List<Vector2> bestAdjacents = GetBestAdjacent(newStore, size, player);
             int randIndex = Random.Range(0, bestAdjacents.Count - 1);
-            player = bestAdjacents[randIndex];
+            //player = bestAdjacents[randIndex];
+            player = bestAdjacents[0];
         }
         path.Add(finish);
         Debug.Log("Finished in " + iterationCount + " iterations");
@@ -206,16 +216,9 @@ public class MazeSolver : MonoBehaviour
     List<Vector2> GetAdjacents(int[,] maze, Vector2 size, Vector2 current, int check)
     {
         List<Vector2> valid = new List<Vector2>();
-        int[] adjacent =
-            {
-                CheckAdjacent(maze, size, current, new Vector2(-1, 0), check),
-                CheckAdjacent(maze, size, current, new Vector2(1, 0), check),
-                CheckAdjacent(maze, size, current, new Vector2(0, 1), check),
-                CheckAdjacent(maze, size, current, new Vector2(0, -1), check)
-            };
         for (int i = 0; i<4; i++)
         {
-            if (adjacent[i] == 1)
+            if (CheckAdjacent(maze, size, current, GetOffsetFromIndex(i), check) == 1)
                 valid.Add(new Vector2(current.x + GetOffsetFromIndex(i).x, current.y + GetOffsetFromIndex(i).y));
         }
         return valid;
