@@ -14,8 +14,10 @@ public class MainScript : MonoBehaviour
     GameObject main;
     MessageText messageText;
     MazeSolver mazeSolver;
+    MazeGenerator mazeGenerator;
+    MazeUtility mUtil;
 
-    Maze chosenMaze;
+    MazeClass chosenMaze;
     // First 3 bits of each value are the "static" maze, derived from the JSON
     // Bits 4-6:
     // Value of 0 = Unchanged
@@ -26,18 +28,12 @@ public class MainScript : MonoBehaviour
     Vector2 finishPos;
     Vector2[] adjacent = new Vector2[4];
     List<Vector2> solution;
-    
-    [System.Serializable]
-    class Maze
-    {
-        public int sizeX, sizeY;
-        public int[] maze;
-    }
 
     // Start is called before the first frame update
     void Start()
     {
         messageText.clearText();
+        //chosenMaze = mazeGenerator.GenerateMaze();
         chosenMaze = GetMazeFromJSON();
         mazeArray = Get2DArrayFromMaze(chosenMaze);
         GenerateMaze(chosenMaze);
@@ -50,16 +46,18 @@ public class MainScript : MonoBehaviour
         main = GameObject.Find("Main");
         messageText = main.GetComponent<MessageText>();
         mazeSolver = main.GetComponent<MazeSolver>();
+        mazeGenerator = main.GetComponent<MazeGenerator>();
+        mUtil = main.GetComponent<MazeUtility>();
     }
 
-    Maze GetMazeFromJSON()
+    MazeClass GetMazeFromJSON()
     {
-        var mazeJSON = Resources.Load<TextAsset>("Mazes/maze5");
-        Maze myMaze = JsonUtility.FromJson<Maze>(mazeJSON.text);
+        var mazeJSON = Resources.Load<TextAsset>("Mazes/maze1");
+        MazeClass myMaze = JsonUtility.FromJson<MazeClass>(mazeJSON.text);
         return myMaze;
     }
 
-    int[,] Get2DArrayFromMaze(Maze mazeObject)
+    int[,] Get2DArrayFromMaze(MazeClass mazeObject)
     {
         int mazeArraySize = mazeObject.sizeX * mazeObject.sizeY;
         int[,] finalMazeArray = new int[mazeObject.sizeX, mazeObject.sizeY];
@@ -70,14 +68,14 @@ public class MainScript : MonoBehaviour
         return finalMazeArray;
     }
 
-    void CreateNewTile(Maze maze, Vector2 index, Vector2 pos, int code)
+    void CreateNewTile(MazeClass maze, Vector2 index, Vector2 pos, int code)
     {
         GameObject cloneTile = Instantiate(tilePrefab, backgroundImage.transform);
         RectTransform tileTransform = cloneTile.GetComponent<RectTransform>();
         Button tileButton = cloneTile.GetComponent<Button>();
         Image tileImage = cloneTile.GetComponent<Image>();
         RectTransform backgroundTransform = backgroundImage.GetComponent<RectTransform>();
-        float tileSizePX = backgroundTransform.rect.width/maze.sizeX;
+        float tileSizePX = backgroundTransform.rect.width/Mathf.Max(maze.sizeX, maze.sizeY);
         tileTransform.position = new Vector3(pos.x * tileSizePX + canvas.transform.position.x, pos.y * tileSizePX + canvas.transform.position.y, 0);
         tileTransform.sizeDelta = new Vector2(tileSizePX-2, tileSizePX-2);
         //tileTransform.rect.width = tileSizePX;
@@ -109,7 +107,7 @@ public class MainScript : MonoBehaviour
         }
     }
 
-    void GenerateMaze(Maze maze)
+    void GenerateMaze(MazeClass maze)
     {
         int sX = maze.sizeX;
         int sY = maze.sizeY;
@@ -208,7 +206,7 @@ public class MainScript : MonoBehaviour
         return new Vector2(int.Parse(""+nameArray[0]), int.Parse(""+nameArray[1]));
     }
 
-    Vector2 GetFinishPos(Maze maze)
+    Vector2 GetFinishPos(MazeClass maze)
     {
         Vector2 f = new Vector2(0, 0);
         for(int x = 0; x<maze.sizeX; x++)
@@ -293,14 +291,14 @@ public class MainScript : MonoBehaviour
         tileImage.color = color;
     }
 
-    Transform TileFromPosition(Maze maze, Vector2 pos)
+    Transform TileFromPosition(MazeClass maze, Vector2 pos)
     {
         if (pos.x < 0 || pos.x > maze.sizeX || pos.y < 0 || pos.y > maze.sizeY)
             return null;
         return backgroundImage.transform.Find((pos.x).ToString() + "," + (pos.y).ToString());
     }
 
-    int RawCodeFromPosition(Maze maze, Vector2 pos)
+    int RawCodeFromPosition(MazeClass maze, Vector2 pos)
     {
         //Debug.Log(pos);
         if(pos.x < maze.sizeX && pos.x >= 0 && pos.y < maze.sizeY && pos.y >= 0)
@@ -313,7 +311,7 @@ public class MainScript : MonoBehaviour
         
     }
 
-    int CodeFromPosition(Maze maze, Vector2 pos)
+    int CodeFromPosition(MazeClass maze, Vector2 pos)
     {
         if (pos.x < maze.sizeX && pos.x >= 0 && pos.y < maze.sizeY && pos.y >= 0)
         {
@@ -325,7 +323,7 @@ public class MainScript : MonoBehaviour
         }
     }
 
-   void UpdateColors(Maze maze)
+   void UpdateColors(MazeClass maze)
     {
         for (int y = 0; y < maze.sizeY; y++)
         {

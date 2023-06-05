@@ -4,6 +4,7 @@ using UnityEngine;
 
 public class MazeSolver : MonoBehaviour
 {
+    MazeUtility mUtil;
     public List<Vector2> GetSolution(int[,] maze)
     {
         List<Vector2> solution = new List<Vector2>();
@@ -74,8 +75,8 @@ public class MazeSolver : MonoBehaviour
                     bool wasEndpoint = false;
                     for (int i = 0; i<4; i++)
                     {
-                        Vector2 adjOffset = GetOffsetFromIndex(i);
-                        int adjCode = CheckAdjacent(mazeStore, size, new Vector2(x, y), adjOffset, 0);
+                        Vector2 adjOffset = mUtil.GetOffsetFromIndex(i);
+                        int adjCode = mUtil.CheckAdjacent(mazeStore, size, new Vector2(x, y), adjOffset, 0);
                         if (adjCode == 1)
                             adjCount++;
                         if (adjCode == -1)
@@ -98,7 +99,7 @@ public class MazeSolver : MonoBehaviour
         for (int d = 0; d < deadEnds.Count; d++)
         {
             Vector2 c = deadEnds[d];
-            List<Vector2> adjacents = GetAdjacents(newStore, size, c, 0);
+            List<Vector2> adjacents = mUtil.GetAdjacents(newStore, size, c, 0);
 
             do
             {
@@ -107,7 +108,7 @@ public class MazeSolver : MonoBehaviour
                 if (adjacents.Count == 0)
                     break;
                 c = adjacents[0];
-                adjacents = GetAdjacents(newStore, size, c, 0);
+                adjacents = mUtil.GetAdjacents(newStore, size, c, 0);
             } while (adjacents.Count == 1);
         }
 
@@ -127,40 +128,6 @@ public class MazeSolver : MonoBehaviour
         }
 
         return newStore;
-    }
-
-    // Simulates a player choosing the best path through the mazeStore array, updating the values it's been at, to create a path of lowest numbers from start to finish
-    // This is to fill up potentially missed dead ends with higher numbers to ensure a correct path of lowest numbers
-    int[,] TraverseMaze(int[,] maze, Vector2 size, int[,] mazeStore)
-    {
-        Vector2 start = new Vector2(0, 0);
-        Vector2 finish = new Vector2(0, 0);
-        int[,] traversedMazeStore = mazeStore;
-
-        // Get Start and Finish positions
-        for (int x = 0; x < size.x; x++)
-            for (int y = 0; y < size.y; y++)
-                if (maze[x, y] == 2)
-                {
-                    start = new Vector2(x, y);
-                }
-                else if (maze[x, y] == 3)
-                    finish = new Vector2(x, y);
-
-        // Traverse mazeStore, increasing the values where the "player" has already been
-        Vector2 player = start;
-        int iterationCount = 0;
-        while (player != finish && iterationCount <= 500)
-        {
-            iterationCount++;
-            traversedMazeStore[(int)player.x, (int)player.y] += 1;
-            List<Vector2> bestAdjacents = GetBestAdjacent(traversedMazeStore, size, player);
-            int randIndex = Random.Range(0, bestAdjacents.Count-1);
-            player = bestAdjacents[randIndex];
-        }
-        Debug.Log("Traversed in "+iterationCount+" iterations");
-
-        return traversedMazeStore;
     }
 
     List<Vector2> GetFinalPath(int[,] maze, Vector2 size, int[,] mazeStore)
@@ -187,7 +154,7 @@ public class MazeSolver : MonoBehaviour
             path.Add(player);
             iterationCount++;
             newStore[(int)player.x, (int)player.y] += 1;
-            List<Vector2> bestAdjacents = GetBestAdjacent(newStore, size, player);
+            List<Vector2> bestAdjacents = mUtil.GetBestAdjacent(newStore, size, player);
             int randIndex = Random.Range(0, bestAdjacents.Count - 1);
             //player = bestAdjacents[randIndex];
             player = bestAdjacents[0];
@@ -198,77 +165,9 @@ public class MazeSolver : MonoBehaviour
         return path;
     }
 
-    int CheckAdjacent(int[,] maze, Vector2 size, Vector2 current, Vector2 offset, int check)
+    private void Awake()
     {
-        Vector2 c = new Vector2(current.x + offset.x, current.y + offset.y);
-        if (c.x >= 0 && c.x < size.x && c.y >= 0 && c.y < size.y)
-        {
-            if (maze[(int)c.x, (int)c.y] == check)
-                return 1;
-        }
-        else
-        {
-            return -1;
-        }
-        return 0;
-    }
-
-    List<Vector2> GetAdjacents(int[,] maze, Vector2 size, Vector2 current, int check)
-    {
-        List<Vector2> valid = new List<Vector2>();
-        for (int i = 0; i<4; i++)
-        {
-            if (CheckAdjacent(maze, size, current, GetOffsetFromIndex(i), check) == 1)
-                valid.Add(new Vector2(current.x + GetOffsetFromIndex(i).x, current.y + GetOffsetFromIndex(i).y));
-        }
-        return valid;
-    }
-
-    List<Vector2> GetBestAdjacent(int[,] mazeStore, Vector2 size, Vector2 current)
-    {
-        List<Vector2> best = new List<Vector2>();
-
-        // Check all 4 adjacent if they are in bounds, and fill "best" with the lowest score adjacent tile(s)
-        for (int i = 0; i<4; i++)
-        {
-            Vector2 o = GetOffsetFromIndex(i);
-            Vector2 a = new Vector2(current.x + o.x, current.y + o.y);
-            if (a.x >= 0 && a.x < size.x && a.y >= 0 && a.y < size.y)
-            {
-                int p = mazeStore[(int)a.x, (int)a.y];
-                if (best.Count == 0)
-                {
-                    best.Add(a);
-                } else
-                {
-                    int bp = mazeStore[(int)best[0].x, (int)best[0].y];
-                    if (bp > p){
-                        best.Clear();
-                        best.Add(a);
-                    } else if (bp == p)
-                        best.Add(a);
-                }
-            }
-        }
-        
-        return best;
-    }
-
-    Vector2 GetOffsetFromIndex(int i)
-    {
-        // 0 = (-1, 0), 1 = (1, 0), 2 = (0, 1), 3 = (0, -1)
-        return new Vector2(0.5f*Mathf.Abs(Mathf.Sign(i-1.5f)-1)*Mathf.Sign(i-0.5f), 0.5f*Mathf.Abs(Mathf.Sign(i-1.5f)+1)*Mathf.Sign(2.5f-i));
-    }
-
-    // Start is called before the first frame update
-    void Start()
-    {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
+        GameObject main = GameObject.Find("Main");
+        mUtil = main.GetComponent<MazeUtility>();
     }
 }
